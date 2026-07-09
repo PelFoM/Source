@@ -575,7 +575,7 @@ def landmarkPairs(modelNode):
     noOfMarkupsNode = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLMarkupsNode')
 
     # actual dictionary of landmark coordinates in active renumbered model
-    with open(pathName + fileName + '_landmarks.dic') as landmarks:
+    with open(str(pathName) + '\\' + str(fileName) + '_landmarks.dic') as landmarks:
         modelDictCoordinatesAll = json.loads(landmarks.read()) # renumbered and converted to dict
 
     modelDictNodes = {} # dictionary of model landmarks nodes
