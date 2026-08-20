@@ -28,6 +28,7 @@ pathName = (PelvicFloorDirectory / localDirectory).resolve()
 
 # template file name
 fileName = 'template'
+#fileName = 'templateModelPelvis'
 extension = '.vtk'
 
 #pathFileName = pathName + fileName + extension

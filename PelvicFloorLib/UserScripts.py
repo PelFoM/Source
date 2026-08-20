@@ -1,9 +1,10 @@
 # ====================================================================================================
 from __main__ import qt
-from PelvicFloorLib import pathName, fileName, extension, \
-    read, update, \
+from PelvicFloorLib import QMessageTitle, pathName, fileName, extension, \
+    read, update, getLandmarks, \
         deleteModels, deleteMarkups, \
             registrationButton, exportButton
+from scipy.interpolate import splprep, splev
 import slicer, numpy as np
 from vtk.util import numpy_support
 
@@ -11,7 +12,7 @@ from vtk.util import numpy_support
 # user script button 1
 def userScript1Button():
     """
-    Scrip defined by user.
+    Script defined by user.
     
     Returns
     -------
@@ -81,6 +82,14 @@ def userScript1Button():
 # ====================================================================================================
 # user script button 2
 def userScript2Button():
+    """
+    Script defined by user.
+    
+    Returns
+    -------
+    Defined by user.
+    """
+
     # import vtkSlicerSegmentComparisonModuleLogicPython
     # s=slicer.util.getNode('vtkMRMLSegmentationNode1') # Whatever your input is
     # p1=s.GetClosedSurfaceRepresentation('Segment_1') # Again, depends on your input. If it's not a segmentation then you'll need to access the model nodes
@@ -124,138 +133,9 @@ def userScript2Button():
 # user script button 3
 def userScript3Button():
     """
-    Scrip defined by user.
+    Script defined by user.
     
     Returns
     -------
     Defined by user.
     """
-
-    import vtk
-    #from scipy.interpolate import interp1d
-    from scipy.interpolate import CubicSpline
-
-    # ellipse from 4 points
-    def ellipse_from_diameters(p1, p2, p3, p4, numberOfPoints=100):
-        center = (p1 + p2 + p3 + p4) / 4
-        axis_a = (p1 - p2) / 2
-        axis_b = (p3 - p4) / 2
-        theta = np.linspace(0, 2 * np.pi, numberOfPoints)
-        ellipse = np.array([center + np.cos(t) * axis_a + np.sin(t) * axis_b for t in theta])
-        return ellipse
-
-    ellipses_points = [
-        (np.array([1, 0, 0]), np.array([-1, 0, 0]), np.array([0, 0.5, 0]), np.array([0, -0.5, 0])), # pelvic inlet
-        (np.array([0.8, 0.2, 1]), np.array([-1.2, 0.3, 1]), np.array([0.1, 0.7, 1]), np.array([-0.1, -0.7, 1])), # middle plane
-        (np.array([0.6, 0.5, 2]), np.array([-0.9, 0.6, 2]), np.array([0.2, 0.9, 2]), np.array([-0.2, -0.9, 2])) # pelvic outlet
-    ]
-
-    ellipses = [ellipse_from_diameters(*pts) for pts in ellipses_points]
-    ellipses = np.array(ellipses)
-    Z = [ellipse[0, 2] for ellipse in ellipses]
-
-    # cubic spline between ellipses
-    numberOfLayers = 60
-    Zi = np.linspace(min(Z), max(Z), numberOfLayers)
-    numberOfPoints = ellipses.shape[1]
-
-    ellipses_smooth = []
-    for point in range(numberOfPoints):
-        x = ellipses[:, point, 0]
-        y = ellipses[:, point, 1]
-        #z = ellipses[:, point, 2]
-        #xi = interp1d(Z, x)
-        xi = CubicSpline(Z, x)
-        #yi = interp1d(Z, y)
-        yi = CubicSpline(Z, y)
-        Xi = xi(Zi)
-        Yi = yi(Zi)
-        ellipses_smooth.append(np.vstack((Xi, Yi, Zi)).T)
-
-    surface = np.array(ellipses_smooth).transpose(1, 0, 2)  # (layers, points, xyz)
-
-    # vtk polygon mesh
-    points = vtk.vtkPoints()
-    polys = vtk.vtkCellArray()
-
-    numberOfLayers, numOfPoints, _ = surface.shape
-    for layer in range(numberOfLayers):
-        for point in range(numOfPoints):
-            points.InsertNextPoint(surface[layer, point])
-
-    # add triangles
-    for layer in range(numberOfLayers - 1):
-        for point in range(numOfPoints - 1):
-            i0 = layer * numOfPoints + point
-            i1 = i0 + 1
-            i2 = i0 + numOfPoints
-            i3 = i2 + 1
-
-            # 2 triangle cells
-            polys.InsertNextCell(3)
-            polys.InsertCellPoint(i0)
-            polys.InsertCellPoint(i2)
-            polys.InsertCellPoint(i1)
-            polys.InsertNextCell(3)
-            polys.InsertCellPoint(i1)
-            polys.InsertCellPoint(i2)
-            polys.InsertCellPoint(i3)
-
-    # closing by last point in circle
-    for layer in range(numberOfLayers - 1):
-        i0 = layer * numOfPoints + (numOfPoints - 1)
-        i1 = layer * numOfPoints
-        i2 = i0 + numOfPoints
-        i3 = i2 - (numOfPoints - 1)
-        polys.InsertNextCell(3)
-        polys.InsertCellPoint(i0)
-        polys.InsertCellPoint(i2)
-        polys.InsertCellPoint(i1)
-        polys.InsertNextCell(3)
-        polys.InsertCellPoint(i1)
-        polys.InsertCellPoint(i2)
-        polys.InsertCellPoint(i3)
-
-    polydata = vtk.vtkPolyData()
-    polydata.SetPoints(points)
-    polydata.SetPolys(polys)
-
-    # add loft to MRML scene
-    modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Smooth Loft Surface")
-    modelNode.SetAndObservePolyData(polydata)
-
-    displayNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-    displayNode.SetColor(0.3, 0.7, 1.0)
-    displayNode.SetOpacity(0.7)
-    displayNode.SetBackfaceCulling(False)
-    modelNode.SetAndObserveDisplayNodeID(displayNode.GetID())
-
-    slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
-
-    # add ellipses to MRML scene
-    for idx, ellipse in enumerate(ellipses):
-        pointsEllipse = vtk.vtkPoints()
-        for point in ellipse:
-            pointsEllipse.InsertNextPoint(point)
-
-        lines = vtk.vtkCellArray()
-        polyline = vtk.vtkPolyLine()
-        polyline.GetPointIds().SetNumberOfIds(len(ellipse))
-        for i in range(len(ellipse)):
-            polyline.GetPointIds().SetId(i, i)
-        lines.InsertNextCell(polyline)
-
-        polydataEllipse = vtk.vtkPolyData()
-        polydataEllipse.SetPoints(pointsEllipse)
-        polydataEllipse.SetLines(lines)
-
-        # add ellise to MRML scene
-        modelNodeEllipse = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", f"Ellipse {idx+1}")
-        modelNodeEllipse.SetAndObservePolyData(polydataEllipse)
-
-        displayNodeEllipse = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-        displayNodeEllipse.SetColor(1, 0, 0)
-        displayNodeEllipse.SetLineWidth(2)
-        displayNodeEllipse.SetOpacity(0.5)
-        displayNodeEllipse.SetBackfaceCulling(False)
-        modelNodeEllipse.SetAndObserveDisplayNodeID(displayNodeEllipse.GetID())

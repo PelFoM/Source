@@ -7,6 +7,7 @@ from PelvicFloorLib import linePrint, timePrint, randomColor, \
                     rotationTransformMatrix, \
                         pelvicFloorVersion, QMessageTitle, epsilon, alpha, morphingType, \
                             pathName, fileName, extension
+from scipy.interpolate import CubicSpline, splprep, splev
 from scipy.optimize import least_squares
 import os, json, slicer, time, vtk, numpy as np
 from pathlib import Path
@@ -806,7 +807,7 @@ def registrationButton(method):
         timePrint("... done", current_time)
 
 # ====================================================================================================
-# show birth canal
+# show birth
 def birthButton():
     """
     Birth canal view.
@@ -817,8 +818,305 @@ def birthButton():
     """
 
     if pelvicFloorVersion == 'development': # check for version
-        currentTime = linePrint("Displaying birth along curve of Carus...")
+        currentTime = linePrint("Displaying birth canal and birth along curve of Carus...")
 
+    # ------------------------------------------------------------
+    # birth canal
+    markupsNodes = slicer.util.getNodesByClass("vtkMRMLMarkupsNode")
+    allExist = 0 # count on all existing landmarks
+
+    for markupsNode in markupsNodes:
+
+        # ------------------------------------------------------------
+        # sequence of if is necessary, because PSI is twice,
+        if markupsNode.GetName() == "IL_L": # there is always single landmark in the node
+            pInletA = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pInletA)
+            allExist += 1
+
+        # otherwise elif is better
+        # inlet plane => PR, PSA, IL_L, IL_R (ellipse)
+        if markupsNode.GetName() == "IL_R":
+            pInletB = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pInletB)
+            allExist += 1
+    
+        if markupsNode.GetName() == "PSA":
+            pInletC = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pInletC)
+            allExist += 1
+    
+        if markupsNode.GetName() == "PR":
+            pInletD = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pInletD)
+            allExist += 1
+    
+        # ------------------------------------------------------------
+        # greatest plane => S3, PSP, AC_L, AC_R (ellipse)
+        if markupsNode.GetName() == "AC_L":
+            pGreatestA = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pGreatestA)
+            allExist += 1
+    
+        if markupsNode.GetName() == "AC_R":
+            pGreatestB = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pGreatestB)
+            allExist += 1
+    
+        if markupsNode.GetName() == "PSP":
+            pGreatestC = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pGreatestC)
+            allExist += 1
+    
+        if markupsNode.GetName() == "S3":
+            pGreatestD = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pGreatestD)
+            allExist += 1
+    
+        # ------------------------------------------------------------
+        # least plane => S5, PSI, IS_L, IS_R (ellipse)
+        if markupsNode.GetName() == "IS_L":
+            pLeastA = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pLeastA)
+            allExist += 1
+    
+        if markupsNode.GetName() == "IS_R":
+            pLeastB = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pLeastB)
+            allExist += 1
+    
+        if markupsNode.GetName() == "PSI":
+            pLeastC = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pLeastC)
+            allExist += 1
+    
+        if markupsNode.GetName() == "S5":
+            pLeastD = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pLeastD)
+            allExist += 1
+
+        # ------------------------------------------------------------
+        # outlet plane => PSI, TI_L, TI_R (circle)
+        if markupsNode.GetName() == "PSI":
+            pOutletA = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pOutletA)
+            allExist += 1
+    
+        if markupsNode.GetName() == "TI_L":
+            pOutletB = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pOutletB)
+            allExist += 1
+    
+        if markupsNode.GetName() == "TI_R":
+            pOutletC = [0, 0, 0]
+            markupsNode.GetNthControlPointPositionWorld(0, pOutletC)
+            allExist += 1
+
+    # all landmarks defining pelvic planes exist
+    if allExist == 15: # (4 points x 4 ellipses + 3 points x 1 triangle)
+
+        # ellipse from 4 points
+        # def ellipse_from_diameters(p1, p2, p3, p4, numberOfPoints=100):
+        #     center = (p1 + p2 + p3 + p4) / 4
+        #     axis_a = (p1 - p2) / 2
+        #     axis_b = (p3 - p4) / 2
+        #     theta = np.linspace(0, 2 * np.pi, numberOfPoints)
+        #     ellipse = np.array([center + np.cos(t) * axis_a + np.sin(t) * axis_b for t in theta])
+        #     return ellipse
+
+        def spatial_ellipse_from_4_points(p1, p2, p3, p4, numberOfPoints=100):
+
+            #points = np.array([p1, p2, p3, p4], dtype=float)
+            points = np.array([p1, p3, p2, p4], dtype=float) # diameters (p1, p2) and (p3, p4)
+
+            points_closed = np.vstack([points, points[0]]) # close the curve
+            t = np.arange(len(points_closed)) # parameter
+            spline, _ = splprep(points_closed.T, u=t, s=0,per=True, k=3) # periodic cubic spline
+            tt = np.linspace(0, 4, numberOfPoints) # generate smooth curve
+            curve = np.array(splev(tt, spline)).T
+
+            return curve
+
+        ellipses_points = [(np.array(pInletA), np.array(pInletB), np.array(pInletC), np.array(pInletD)), # pelvic inlet (ILL, ILR, PSA, PR)
+                           (np.array(pGreatestA), np.array(pGreatestB), np.array(pGreatestC), np.array(pGreatestD)), # greatest plane (S3, PSP, AC_L, AC_R)
+                           (np.array(pLeastA), np.array(pLeastB), np.array(pLeastC), np.array(pLeastD)), # least plane (S5, PSI, IS_L, IS_R)
+                           None] # pelvic outlet (PSI, TI_L, TI_R)
+
+        # ------------------------------------------------------------
+        # diplay allipses
+        major_ellipses = []
+        for points in ellipses_points[:3]:
+            ellipse = spatial_ellipse_from_4_points(points[0], points[1], points[2], points[3])
+            major_ellipses.append(ellipse)
+
+        for idx, ellipse in enumerate(major_ellipses):
+            pointsEllipse = vtk.vtkPoints()
+
+            for point in ellipse:
+                pointsEllipse.InsertNextPoint(point)
+
+            lines = vtk.vtkCellArray()
+            polyline = vtk.vtkPolyLine()
+            polyline.GetPointIds().SetNumberOfIds(len(ellipse))
+
+            for i in range(len(ellipse)):
+                polyline.GetPointIds().SetId(i, i)
+
+            lines.InsertNextCell(polyline)
+
+            polydataEllipse = vtk.vtkPolyData()
+            polydataEllipse.SetPoints(pointsEllipse)
+            polydataEllipse.SetLines(lines)
+
+            modelNodeEllipse = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", f"Major Ellipse {idx + 1}")
+            modelNodeEllipse.SetAndObservePolyData(polydataEllipse)
+            displayNodeEllipse = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
+
+            displayNodeEllipse.SetColor(1, 0, 0)
+            displayNodeEllipse.SetLineWidth(3)
+            displayNodeEllipse.SetOpacity(1.0)
+
+            modelNodeEllipse.SetAndObserveDisplayNodeID(displayNodeEllipse.GetID())
+
+        # ------------------------------------------------------------
+        # parameter along pelvis
+        t = np.array([0.0, 0.5, 1.0]) 
+        numberOfLayers = 50
+        ti = np.linspace(0.0, 1.0, numberOfLayers)
+        ellipses_smooth = [] # interpolate the four anatomical points in 3D
+
+        for tii in ti:
+
+            interpolated_points = []
+            for point in range(4):
+
+                # coordinates of this anatomical point
+                points = np.array([ellipses_points[0][point], ellipses_points[1][point], ellipses_points[2][point]])
+
+                # interpolate X, Y, Z
+                x = CubicSpline(t, points[:, 0])(tii)
+                y = CubicSpline(t, points[:, 1])(tii)
+                z = CubicSpline(t, points[:, 2])(tii)
+                interpolated_points.append(np.array([x, y, z]))
+
+            # construct ellipse from the four interpolated points
+            ellipse = spatial_ellipse_from_4_points(interpolated_points[0], interpolated_points[1],
+                                                    interpolated_points[2], interpolated_points[3])
+            ellipses_smooth.append(ellipse)
+
+        surface = np.array(ellipses_smooth)
+
+        # ------------------------------------------------------------
+        # create smooth surface
+        points = vtk.vtkPoints()
+        polys = vtk.vtkCellArray()
+
+        numberOfLayers, numOfPoints, _ = surface.shape
+
+        # add all surface points
+        for layer in range(numberOfLayers):
+            for point in range(numOfPoints):
+                points.InsertNextPoint(surface[layer, point])
+
+        # connect consecutive layers
+        for layer in range(numberOfLayers - 1):
+
+            for point in range(numOfPoints):
+
+                nextPoint = (point + 1) % numOfPoints
+
+                i0 = layer * numOfPoints + point
+                i1 = layer * numOfPoints + nextPoint
+                i2 = (layer + 1) * numOfPoints + point
+                i3 = (layer + 1) * numOfPoints + nextPoint
+
+                # triangle 1
+                polys.InsertNextCell(3)
+                polys.InsertCellPoint(i0)
+                polys.InsertCellPoint(i2)
+                polys.InsertCellPoint(i1)
+
+                # triangle 2
+                polys.InsertNextCell(3)
+                polys.InsertCellPoint(i1)
+                polys.InsertCellPoint(i2)
+                polys.InsertCellPoint(i3)
+
+        polydata = vtk.vtkPolyData()
+        polydata.SetPoints(points)
+        polydata.SetPolys(polys)
+
+        # ------------------------------------------------------------
+        # add smooth surface to MRML screen
+        modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Birth canal")
+        modelNode.SetAndObservePolyData(polydata)
+        displayNode = modelNode.GetDisplayNode()
+
+        if displayNode is None:
+            displayNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
+            modelNode.SetAndObserveDisplayNodeID(displayNode.GetID())
+
+        displayNode.SetColor(0.3, 0.7, 1.0)
+        displayNode.SetOpacity(0.7)
+        displayNode.SetBackfaceCulling(False)
+
+        # ------------------------------------------------------------
+        # pelvic outlet triangle
+        points = vtk.vtkPoints()
+        points.InsertNextPoint(float(pOutletA[0]), float(pOutletA[1]), float(pOutletA[2]))
+        points.InsertNextPoint(float(pOutletB[0]), float(pOutletB[1]), float(pOutletB[2]) )
+        points.InsertNextPoint(float(pOutletC[0]), float(pOutletC[1]), float(pOutletC[2]))
+
+        # triangle edges
+        lines = vtk.vtkCellArray()
+
+        for i, j in [(0, 1), (1, 2), (2, 0)]:
+
+            line = vtk.vtkLine()
+            line.GetPointIds().SetId(0, i)
+            line.GetPointIds().SetId(1, j)
+
+            lines.InsertNextCell(line)
+
+        # filled triangle
+        polys = vtk.vtkCellArray()
+
+        triangle = vtk.vtkPolygon()
+        triangle.GetPointIds().SetNumberOfIds(3)
+
+        triangle.GetPointIds().SetId(0, 0)
+        triangle.GetPointIds().SetId(1, 1)
+        triangle.GetPointIds().SetId(2, 2)
+
+        polys.InsertNextCell(triangle)
+
+        # polyData
+        polydata = vtk.vtkPolyData()
+        polydata.SetPoints(points)
+        polydata.SetLines(lines)
+        polydata.SetPolys(polys)
+
+        # view
+        outletNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Pelvic outlet")
+        outletNode.CreateDefaultDisplayNodes()
+        outletNode.SetAndObservePolyData(polydata)
+
+        displayNode = outletNode.GetDisplayNode()
+
+        displayNode.SetColor(1.0, 0.0, 0.0)
+        displayNode.SetOpacity(0.5)
+        displayNode.SetLineWidth(3.0)
+        displayNode.SetBackfaceCulling(False)
+
+        outletNode.SetDisplayVisibility(True)
+
+    else:
+
+        qt.QMessageBox.warning(slicer.util.mainWindow(), QMessageTitle, 
+                               'At least 1 landmark for defining birth canal is missing.')            
+
+    # ------------------------------------------------------------
+    # curve of carus
     noOfModelNode = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLModelNode')
     if noOfModelNode > 0:
 
@@ -868,158 +1166,63 @@ def birthButton():
             pointsModelNodePelvicFloor = numpy_support.vtk_to_numpy(volMeshmodelNodePelvicFloor.GetPoints().GetData())
             
             # landmarks defining curve of Carus
-            # + 11 because of 11 additional nodes defining new points
-            # PSA = pointsModelNodePelvicFloor[95288 + 11]
-            # PSP = pointsModelNodePelvicFloor[95289 + 11]
-            # PSI = pointsModelNodePelvicFloor[95277 + 11]
-            # PR = pointsModelNodePelvicFloor[95291 + 11]
-            # S3 = pointsModelNodePelvicFloor[95292 + 11]
-            # S5 = pointsModelNodePelvicFloor[95294 + 11] # S5 = SJ
-            PSA = pointsModelNodePelvicFloor[35484]
-            PSP = pointsModelNodePelvicFloor[35485]
-            PSI = pointsModelNodePelvicFloor[35473]
-            PR = pointsModelNodePelvicFloor[35487]
-            S3 = pointsModelNodePelvicFloor[35488]
-            S5 = pointsModelNodePelvicFloor[35490] # S5 = SJ
+            # PSA = pointsModelNodePelvicFloor[35484]
+            # PSP = pointsModelNodePelvicFloor[35485]
+            # PSI = pointsModelNodePelvicFloor[35473]
+            # PR = pointsModelNodePelvicFloor[35487]
+            # S3 = pointsModelNodePelvicFloor[35488]
+            # S5 = pointsModelNodePelvicFloor[35490] # S5 = SJ
 
-            # additional landmarks defining birth canal
-            # + 11 because of 11 additional nodes defining new points
-            # S4 = pointsModelNodePelvicFloor[95304]
-            # SJ = S5 # S5 = SJ
-            # ILL = pointsModelNodePelvicFloor[95316]
-            # ILR = pointsModelNodePelvicFloor[95317]
-            # ISL = pointsModelNodePelvicFloor[95310]
-            # ISR = pointsModelNodePelvicFloor[95311]
-            # ITL = pointsModelNodePelvicFloor[95308]
-            # ITR = pointsModelNodePelvicFloor[95309]
+            # markupsNodes = slicer.util.getNodesByClass("vtkMRMLMarkupsNode")
+            # allExist = 0 # count on all existing landmarks
 
-            # # ----------------------------------------------------------------------------------------------------------------------------
-            # # display birth canal
-            # # APD = PR - PSP, CW = S4 - PSP and SCIPP = SJ - PSI in the anteroposterior direction
-            # # DIL = ILL - ILR, DIS = ISL - ISR and DIT = ITL - ITR in the transverse direction
-            # ellipsesPoints = [
-            #     (PR, PSP, ILL, ILR), # pelvic inlet
-            #     (S4, PSP, ISL, ISR), # middle plane
-            #     (SJ, PSI, ITL, ITR)  # pelvic outlet
-            # ]
+            # for markupsNode in markupsNodes:
 
-            # ellipses = [ellipseFromDiameters(*pts) for pts in ellipsesPoints]
-            # ellipses = np.array(ellipses)  # (n_elips, n_points, 3)
+            #     # ------------------------------------------------------------
+            #     # sequence of if is necessary, because PSI is twice,
+            #     if markupsNode.GetName() == "PSA":
+            #         PSA = [0, 0, 0]
+            #         markupsNode.GetNthControlPointPositionWorld(0, PSA)
+            #         allExist += 1
+            
+            #     elif markupsNode.GetName() == "PSP": # there is always single landmark in the node
+            #         PSP = [0, 0, 0]
+            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
+            #         allExist += 1
 
-            # # parametrisation in space
-            # centers = np.mean(ellipses, axis=1)   # střed každé elipsy
-            # t = np.linspace(0, 1, len(ellipses))  # parametr elips
+            #     elif markupsNode.GetName() == "PSI": # there is always single landmark in the node
+            #         PSI = [0, 0, 0]
+            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
+            #         allExist += 1
 
-            # # number of layesr for smooth loft
-            # numberOfLayers = 60
-            # ti = np.linspace(0, 1, numberOfLayers)
-            # numberOfPoints = ellipses.shape[1]
+            #     elif markupsNode.GetName() == "PR": # there is always single landmark in the node
+            #         PR = [0, 0, 0]
+            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
+            #         allExist += 1
 
-            # # interpolation
-            # ellipsesSmooth = []
-            # for point_idx in range(numberOfPoints):
-            #     x = ellipses[:, point_idx, 0]
-            #     y = ellipses[:, point_idx, 1]
-            #     z = ellipses[:, point_idx, 2]
+            #     elif markupsNode.GetName() == "S3": # there is always single landmark in the node
+            #         S3 = [0, 0, 0]
+            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
+            #         allExist += 1
 
-            #     # xi = interp1d(t, x, kind='linear')
-            #     # yi = interp1d(t, y, kind='linear')
-            #     # zi = interp1d(t, z, kind='linear')
-            #     xi = PchipInterpolator(t, x) # CubicSpline(t, x)
-            #     yi = PchipInterpolator(t, y) # CubicSpline(t, y)
-            #     zi = PchipInterpolator(t, z) # CubicSpline(t, z)
-            #     Xi = xi(ti)
-            #     Yi = yi(ti)
-            #     Zi = zi(ti)
+            #     elif markupsNode.GetName() == "S5": # there is always single landmark in the node
+            #         S5 = [0, 0, 0]
+            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
+            #         allExist += 1
 
-            #     ellipsesSmooth.append(np.vstack((Xi, Yi, Zi)).T)
+            # # all landmarks defining pelvic planes exist
+            # if allExist == 6: # (6 landmarks)
+            #     pass
+            # else:
+            #     qt.QMessageBox.warning(slicer.util.mainWindow(), QMessageTitle, 
+            #                            'At least 1 landmark for defining birth canal is missing.')            
 
-            # surface = np.array(ellipsesSmooth).transpose(1, 0, 2)  # (layers, points, xyz)
-
-            # # polygon mesh
-            # points = vtk.vtkPoints()
-            # polys = vtk.vtkCellArray()
-
-            # numberOfLayers, numOfPoints, _ = surface.shape
-            # for layer in range(numberOfLayers):
-            #     for point in range(numOfPoints):
-            #         points.InsertNextPoint(surface[layer, point])
-
-            # # triangulation between layers
-            # for layer in range(numberOfLayers - 1):
-            #     for point in range(numOfPoints - 1):
-            #         i0 = layer * numOfPoints + point
-            #         i1 = i0 + 1
-            #         i2 = i0 + numOfPoints
-            #         i3 = i2 + 1
-
-            #         polys.InsertNextCell(3)
-            #         polys.InsertCellPoint(i0)
-            #         polys.InsertCellPoint(i2)
-            #         polys.InsertCellPoint(i1)
-            #         polys.InsertNextCell(3)
-            #         polys.InsertCellPoint(i1)
-            #         polys.InsertCellPoint(i2)
-            #         polys.InsertCellPoint(i3)
-
-            # # closing circle
-            # for layer in range(numberOfLayers - 1):
-            #     i0 = layer * numOfPoints + (numOfPoints - 1)
-            #     i1 = layer * numOfPoints
-            #     i2 = i0 + numOfPoints
-            #     i3 = i2 - (numOfPoints - 1)
-
-            #     polys.InsertNextCell(3)
-            #     polys.InsertCellPoint(i0)
-            #     polys.InsertCellPoint(i2)
-            #     polys.InsertCellPoint(i1)
-            #     polys.InsertNextCell(3)
-            #     polys.InsertCellPoint(i1)
-            #     polys.InsertCellPoint(i2)
-            #     polys.InsertCellPoint(i3)
-
-            # polydata = vtk.vtkPolyData()
-            # polydata.SetPoints(points)
-            # polydata.SetPolys(polys)
-
-            # # smooth surface to MRML scene
-            # modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Smooth Loft Surface")
-            # modelNode.SetAndObservePolyData(polydata)
-
-            # displayNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-            # displayNode.SetColor(0.3, 0.7, 1.0)
-            # displayNode.SetOpacity(0.7)
-            # displayNode.SetBackfaceCulling(False)
-            # modelNode.SetAndObserveDisplayNodeID(displayNode.GetID())
-
-            # slicer.app.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
-
-            # # ellipses to MRML scene
-            # for idx, ellipse in enumerate(ellipses):
-            #     pointsEllipse = vtk.vtkPoints()
-            #     for point in ellipse:
-            #         pointsEllipse.InsertNextPoint(point)
-
-            #     lines = vtk.vtkCellArray()
-            #     polyline = vtk.vtkPolyLine()
-            #     polyline.GetPointIds().SetNumberOfIds(len(ellipse))
-            #     for i in range(len(ellipse)):
-            #         polyline.GetPointIds().SetId(i, i)
-            #     lines.InsertNextCell(polyline)
-
-            #     polydataEllipse = vtk.vtkPolyData()
-            #     polydataEllipse.SetPoints(pointsEllipse)
-            #     polydataEllipse.SetLines(lines)
-
-            #     modelNodeEllipse = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", f"Ellipse {idx+1}")
-            #     modelNodeEllipse.SetAndObservePolyData(polydataEllipse)
-
-            #     displayNodeEllipse = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-            #     displayNodeEllipse.SetColor(1, 0, 0)
-            #     displayNodeEllipse.SetLineWidth(2)
-            #     displayNodeEllipse.SetOpacity(0.5)
-            #     displayNodeEllipse.SetBackfaceCulling(False)
-            #     modelNodeEllipse.SetAndObserveDisplayNodeID(displayNodeEllipse.GetID())
+            PSA = pInletC
+            PSP = pGreatestC
+            PSI = pLeastC
+            PR = pInletD
+            S3 = pGreatestD
+            S5 = pLeastD
 
             # ----------------------------------------------------------------------------------------------------------------------------
             P1 = (PSA + PR) / 2.0 # middle point of pelvic inlet (from the proximal end of pubic symphysis to proximal end of sacrum)
