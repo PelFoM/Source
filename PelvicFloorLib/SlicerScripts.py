@@ -830,85 +830,85 @@ def birthButton():
         # ------------------------------------------------------------
         # sequence of if is necessary, because PSI is twice,
         if markupsNode.GetName() == "IL_L": # there is always single landmark in the node
-            pInletA = [0, 0, 0]
+            pInletA = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pInletA)
             allExist += 1
 
         # otherwise elif is better
         # inlet plane => PR, PSA, IL_L, IL_R (ellipse)
         if markupsNode.GetName() == "IL_R":
-            pInletB = [0, 0, 0]
+            pInletB = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pInletB)
             allExist += 1
     
         if markupsNode.GetName() == "PSA":
-            pInletC = [0, 0, 0]
+            pInletC = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pInletC)
             allExist += 1
     
         if markupsNode.GetName() == "PR":
-            pInletD = [0, 0, 0]
+            pInletD = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pInletD)
             allExist += 1
     
         # ------------------------------------------------------------
         # greatest plane => S3, PSP, AC_L, AC_R (ellipse)
         if markupsNode.GetName() == "AC_L":
-            pGreatestA = [0, 0, 0]
+            pGreatestA = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pGreatestA)
             allExist += 1
     
         if markupsNode.GetName() == "AC_R":
-            pGreatestB = [0, 0, 0]
+            pGreatestB = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pGreatestB)
             allExist += 1
     
         if markupsNode.GetName() == "PSP":
-            pGreatestC = [0, 0, 0]
+            pGreatestC = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pGreatestC)
             allExist += 1
     
         if markupsNode.GetName() == "S3":
-            pGreatestD = [0, 0, 0]
+            pGreatestD = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pGreatestD)
             allExist += 1
     
         # ------------------------------------------------------------
         # least plane => S5, PSI, IS_L, IS_R (ellipse)
         if markupsNode.GetName() == "IS_L":
-            pLeastA = [0, 0, 0]
+            pLeastA = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pLeastA)
             allExist += 1
     
         if markupsNode.GetName() == "IS_R":
-            pLeastB = [0, 0, 0]
+            pLeastB = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pLeastB)
             allExist += 1
     
         if markupsNode.GetName() == "PSI":
-            pLeastC = [0, 0, 0]
+            pLeastC = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pLeastC)
             allExist += 1
     
         if markupsNode.GetName() == "S5":
-            pLeastD = [0, 0, 0]
+            pLeastD = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pLeastD)
             allExist += 1
 
         # ------------------------------------------------------------
         # outlet plane => PSI, TI_L, TI_R (circle)
         if markupsNode.GetName() == "PSI":
-            pOutletA = [0, 0, 0]
+            pOutletA = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pOutletA)
             allExist += 1
     
         if markupsNode.GetName() == "TI_L":
-            pOutletB = [0, 0, 0]
+            pOutletB = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pOutletB)
             allExist += 1
     
         if markupsNode.GetName() == "TI_R":
-            pOutletC = [0, 0, 0]
+            pOutletC = np.array([0, 0, 0])
             markupsNode.GetNthControlPointPositionWorld(0, pOutletC)
             allExist += 1
 
@@ -937,9 +937,9 @@ def birthButton():
 
             return curve
 
-        ellipses_points = [(np.array(pInletA), np.array(pInletB), np.array(pInletC), np.array(pInletD)), # pelvic inlet (ILL, ILR, PSA, PR)
-                           (np.array(pGreatestA), np.array(pGreatestB), np.array(pGreatestC), np.array(pGreatestD)), # greatest plane (S3, PSP, AC_L, AC_R)
-                           (np.array(pLeastA), np.array(pLeastB), np.array(pLeastC), np.array(pLeastD)), # least plane (S5, PSI, IS_L, IS_R)
+        ellipses_points = [(pInletA, pInletB, pInletC, pInletD), # pelvic inlet (ILL, ILR, PSA, PR)
+                           (pGreatestA, pGreatestB, pGreatestC, pGreatestD), # greatest plane (S3, PSP, AC_L, AC_R)
+                           (pLeastA, pLeastB, pLeastC, pLeastD), # least plane (S5, PSI, IS_L, IS_R)
                            None] # pelvic outlet (PSI, TI_L, TI_R)
 
         # ------------------------------------------------------------
@@ -1120,417 +1120,389 @@ def birthButton():
     noOfModelNode = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLModelNode')
     if noOfModelNode > 0:
 
-        # apply to last model (head)
-        modelNodeHead = slicer.mrmlScene.GetNthNodeByClass(noOfModelNode - 1, 'vtkMRMLModelNode')
-        if modelNodeHead.GetName().find('Model') > -1: # pelvic floow (-1) + head (0)
+        # apply to last model (head) there are 3 ellipses + 1 surface + 1 outlet in MRML screen
+        #modelNodeHead = slicer.mrmlScene.GetNthNodeByClass(noOfModelNode - 1 - 5, 'vtkMRMLModelNode')
 
-            # new transform node
-            #transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "MotionTransform")
-            transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "StepTransform")
+        # import head (reference position)
+        modelNodeHead = read(str(pathName / 'head.vtk'), 'Model', 'vtk')
+        volMeshModelNodeHead = modelNodeHead.GetMesh()
+        pointsModelNodeHead = numpy_support.vtk_to_numpy(volMeshModelNodeHead.GetPoints().GetData())
+        pointsModelNodeHead[:, [0, 1]] *= -1 # -> convert LPS to (internal) RAS coordinate system
+        #update(modelNodeHead) # makes new model node (doubled)
+        noOfModelNode += 1 # head added
 
-            # add transformation to model
-            modelNodeHead.SetAndObserveTransformNodeID(transformNode.GetID())
+        #modelNodeHead = slicer.mrmlScene.GetNthNodeByClass(noOfModelNode - 1, 'vtkMRMLModelNode')
+        #volMeshModelNodeHead = modelNodeHead.GetMesh()
+        #pointsModelNodeHead = numpy_support.vtk_to_numpy(volMeshModelNodeHead.GetPoints().GetData())
 
-            # model points
-            volMeshModelNodeHead = modelNodeHead.GetMesh()
-            pointsModelNodeHead = numpy_support.vtk_to_numpy(volMeshModelNodeHead.GetPoints().GetData())
+        # head COG (reference position)
+        v9083001 = pointsModelNodeHead[7]
+        COG = v9083001
 
-            # head COG
-            v9083001 = pointsModelNodeHead[7]
-            COG = v9083001
+        # mentovertical axis
+        v803001 = pointsModelNodeHead[0] # point at chin (down) on mentovertical axis
+        v803002 = pointsModelNodeHead[1] # point at top (up) on mentovertical axis
+        MVD = v803001
+        MVU = v803002
+        mentovertical = MVU - MVD
 
-            # mentovertical axis
-            v803001 = pointsModelNodeHead[0] # point at chin (down) on mentovertical axis
-            v803002 = pointsModelNodeHead[1] # point at top (up) on mentovertical axis
-            MVD = v803001
-            MVU = v803002
-            mentovertical = MVU - MVD
+        # parietal axis
+        v803003 = pointsModelNodeHead[2] # left point on parietal axis
+        v803004 = pointsModelNodeHead[3] # right point on parietal axis
+        BPL = v803003
+        BPR = v803004
+        DPR = np.linalg.norm(BPR - BPL) / 2.0 # biparietal diameter
+        biparietal = BPR - BPL # equal to asis L between P3 and P5
 
-            # parietal axis
-            v803003 = pointsModelNodeHead[2] # left point on parietal axis
-            v803004 = pointsModelNodeHead[3] # right point on parietal axis
-            BPL = v803003
-            BPR = v803004
-            DPR = np.linalg.norm(BPR - BPL) / 2.0 # biparietal diameter
-            biparietal = BPR - BPL # equal to asis L between P3 and P5
+        v803005 = pointsModelNodeHead[4] # rear point on suboccipitobregmatic diameter
+        v803006 = pointsModelNodeHead[5] # frontal point on suboccipitobregmatic diameter
+        SOBR = v803005
+        SOBF = v803006
+        #suboccipit = SOBF - SOBR
 
-            v803005 = pointsModelNodeHead[4] # rear point on suboccipitobregmatic diameter
-            v803006 = pointsModelNodeHead[5] # frontal point on suboccipitobregmatic diameter
-            SOBR = v803005
-            SOBF = v803006
-            #suboccipit = SOBF - SOBR
-
-            # curve of Carus
-            modelNodePelvicFloor = slicer.mrmlScene.GetNthNodeByClass(noOfModelNode - 2, 'vtkMRMLModelNode')
-            volMeshmodelNodePelvicFloor = modelNodePelvicFloor.GetMesh()
-            pointsModelNodePelvicFloor = numpy_support.vtk_to_numpy(volMeshmodelNodePelvicFloor.GetPoints().GetData())
-            
-            # landmarks defining curve of Carus
-            # PSA = pointsModelNodePelvicFloor[35484]
-            # PSP = pointsModelNodePelvicFloor[35485]
-            # PSI = pointsModelNodePelvicFloor[35473]
-            # PR = pointsModelNodePelvicFloor[35487]
-            # S3 = pointsModelNodePelvicFloor[35488]
-            # S5 = pointsModelNodePelvicFloor[35490] # S5 = SJ
-
-            # markupsNodes = slicer.util.getNodesByClass("vtkMRMLMarkupsNode")
-            # allExist = 0 # count on all existing landmarks
-
-            # for markupsNode in markupsNodes:
-
-            #     # ------------------------------------------------------------
-            #     # sequence of if is necessary, because PSI is twice,
-            #     if markupsNode.GetName() == "PSA":
-            #         PSA = [0, 0, 0]
-            #         markupsNode.GetNthControlPointPositionWorld(0, PSA)
-            #         allExist += 1
-            
-            #     elif markupsNode.GetName() == "PSP": # there is always single landmark in the node
-            #         PSP = [0, 0, 0]
-            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
-            #         allExist += 1
-
-            #     elif markupsNode.GetName() == "PSI": # there is always single landmark in the node
-            #         PSI = [0, 0, 0]
-            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
-            #         allExist += 1
-
-            #     elif markupsNode.GetName() == "PR": # there is always single landmark in the node
-            #         PR = [0, 0, 0]
-            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
-            #         allExist += 1
-
-            #     elif markupsNode.GetName() == "S3": # there is always single landmark in the node
-            #         S3 = [0, 0, 0]
-            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
-            #         allExist += 1
-
-            #     elif markupsNode.GetName() == "S5": # there is always single landmark in the node
-            #         S5 = [0, 0, 0]
-            #         markupsNode.GetNthControlPointPositionWorld(0, pInletA)
-            #         allExist += 1
-
-            # # all landmarks defining pelvic planes exist
-            # if allExist == 6: # (6 landmarks)
-            #     pass
-            # else:
-            #     qt.QMessageBox.warning(slicer.util.mainWindow(), QMessageTitle, 
-            #                            'At least 1 landmark for defining birth canal is missing.')            
-
+        # curve of Carus
+        modelNodePelvicFloor = slicer.mrmlScene.GetNthNodeByClass(noOfModelNode - 2, 'vtkMRMLModelNode')
+        volMeshmodelNodePelvicFloor = modelNodePelvicFloor.GetMesh()
+        pointsModelNodePelvicFloor = numpy_support.vtk_to_numpy(volMeshmodelNodePelvicFloor.GetPoints().GetData())
+        
+        # landmarks defining curve of Carus
+        if allExist == 15: # morphed model
             PSA = pInletC
             PSP = pGreatestC
             PSI = pLeastC
             PR = pInletD
             S3 = pGreatestD
             S5 = pLeastD
+            B = pOutletB
+            C = pOutletC
 
-            # ----------------------------------------------------------------------------------------------------------------------------
-            P1 = (PSA + PR) / 2.0 # middle point of pelvic inlet (from the proximal end of pubic symphysis to proximal end of sacrum)
-            P2 = (PSP + S3) / 2.0 # middle point of the midpelvic cavity (from middle of pubic symphysis to middle of sacrum (third sacral vertebrae))
-            P3 = (PSI + S5) / 2.0 # middle point of pelvic outlet (from distal end of pubic symphysis to distal end of sacrum)
+        else: # template model
+            with open(str(pathName) + '\\' + str(fileName) + '_landmarks.dic') as landmarks:
+                modelDictCoordinatesAll = json.loads(landmarks.read()) # renumbered and converted to dict
 
-            # coordinates of P4 (closest point to pubic symphysis on plane of pubic arch that allowed the passage of fetal head)
-            A = PSI
-            B = pointsModelNodePelvicFloor[7]
-            C = pointsModelNodePelvicFloor[6]
+            PSA = pointsModelNodePelvicFloor[modelDictCoordinatesAll['PSA']]
+            PSP = pointsModelNodePelvicFloor[modelDictCoordinatesAll['PSP']]
+            PSI = pointsModelNodePelvicFloor[modelDictCoordinatesAll['PSI']]
+            PR = pointsModelNodePelvicFloor[modelDictCoordinatesAll['PR']]
+            S3 = pointsModelNodePelvicFloor[modelDictCoordinatesAll['S3']]
+            S5 = pointsModelNodePelvicFloor[modelDictCoordinatesAll['S5']] # S5 = SJ
+            B = pointsModelNodePelvicFloor[modelDictCoordinatesAll['TI_L']]
+            C = pointsModelNodePelvicFloor[modelDictCoordinatesAll['TI_R']]
 
-            E = (B - A) + (C - A) # auxiliary point E lies on line AP4
-            alpha = np.arcsin(np.linalg.norm(np.cross((B - A), (E - A))) / (np.linalg.norm(B - A) * np.linalg.norm(E - A)))
-            dP4A = DPR / np.sin(alpha)
-            p = 0.95; # p is the approximation constant to symphysis
-            P4 = (E - A) / np.linalg.norm(E - A) * dP4A * p
+        # ----------------------------------------------------------------------------------------------------------------------------
+        P1 = (PSA + PR) / 2.0 # middle point of pelvic inlet (from the proximal end of pubic symphysis to proximal end of sacrum)
+        P2 = (PSP + S3) / 2.0 # middle point of the midpelvic cavity (from middle of pubic symphysis to middle of sacrum (third sacral vertebrae))
+        P3 = (PSI + S5) / 2.0 # middle point of pelvic outlet (from distal end of pubic symphysis to distal end of sacrum)
 
-            # coordinates of P5 (point where fetal head is fully delivered)
-            dP5 = 60.0 # estimate of sufficient distance between P4 and P5
-            #k = 1.5 # k tilts P5 back to pelvis
-            #P5 = np.array([0.0, k * dP5 + P4[2] - k * P4[0], -dP5])
-            P5 = P4 + np.array([0.0, dP5, -dP5])
+        
+        A = PSI # coordinates of P4 (closest point to pubic symphysis on plane of pubic arch that allowed the passage of fetal head)
+        E = (B - A) + (C - A) # auxiliary point E lies on line AP4
+        alpha = np.arcsin(np.linalg.norm(np.cross((B - A), (E - A))) / (np.linalg.norm(B - A) * np.linalg.norm(E - A)))
+        dP4A = DPR / np.sin(alpha)
+        p = 0.95; # p is the approximation constant to symphysis
+        P4 = A + (E - A) / np.linalg.norm(E - A) * dP4A * p
 
-            # points defining curve of Carus
-            P = np.array([P1, P2, P3, P4, P5])
+        # coordinates of P5 (point where fetal head is fully delivered)
+        dP5 = 60.0 # estimate of sufficient distance between P4 and P5
+        #k = 1.5 # k tilts P5 back to pelvis
+        #P5 = np.array([0.0, k * dP5 + P4[2] - k * P4[0], -dP5])
+        P5 = P4 + np.array([0.0, dP5, -dP5])
 
-            # display points defining curve of Carus
-            markups = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
-            for i, p in enumerate(P):
-                markups.AddControlPoint(*p, f"P{i+1}")
+        # points defining curve of Carus
+        P = np.array([P1, P2, P3, P4, P5])
 
-            # number of points along curve of Carus
-            numberOfPoints = 20
-            t = np.linspace(0, 1, numberOfPoints)
+        # display points defining curve of Carus
+        markups = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+        for i, p in enumerate(P):
+            markups.AddControlPoint(*p, f"P{i+1}")
+
+        # number of points along curve of Carus
+        numberOfPoints = 20
+        t = np.linspace(0, 1, numberOfPoints)
+        
+        # parametric B-spline (tck = tuple with parameters)
+        tck, Pi = splprep([P[:, 1], P[:, 2]], s=0) # s=0 means accurately through points
+        Pi = np.round(Pi * numberOfPoints)
+        yi, zi = splev(t, tck)
+        curveOfCarus = np.column_stack((np.zeros_like(yi), yi, zi))
+
+        # ----------------------------------------------------------------------------------------------------------------------------
+        # display curve of Carus
+        points = vtk.vtkPoints()
+        lines = vtk.vtkCellArray()
+
+        for p in curveOfCarus:
+            points.InsertNextPoint(p)
+
+        lines.InsertNextCell(len(curveOfCarus))
+        for i in range(len(curveOfCarus)):
+            lines.InsertCellPoint(i)
+
+        polyData = vtk.vtkPolyData()
+        polyData.SetPoints(points)
+        polyData.SetLines(lines)
+
+        curve = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Curve of Carus")
+        curve.SetAndObservePolyData(polyData)
+
+        curve.CreateDefaultDisplayNodes()
+        displayNode = curve.GetDisplayNode()
+        displayNode.SetColor(0, 1, 0)
+        displayNode.SetLineWidth(1.0)
+        # ----------------------------------------------------------------------------------------------------------------------------
+
+        angleMV13 = np.radians(90.0) # mentovertical angle between P1 and P3
+        angleBPextension12 = np.arcsin(np.linalg.norm(np.cross(PR - PSA, S3 - PSP)) / (np.linalg.norm(PR - PSA) * np.linalg.norm(S3 - PSP)))
+        angleBPextension23 = np.arcsin(np.linalg.norm(np.cross(S3 - PSP, S5 - PSI)) / (np.linalg.norm(S3 - PSP) * np.linalg.norm(S5 - PSI)))
+        angleBPextension34 = np.arcsin(np.linalg.norm(np.cross(S5 - PSI, P4 - PSI)) / (np.linalg.norm(S5 - PSI) * np.linalg.norm(P4 - PSI)))
+        angleBP45 = np.radians(70.0) # final angle
+
+        transform = vtkTransform() # transformation initialisation
+        transform.Identity() # for cumulative transformation during loop
+
+        T_global = np.eye(4) # initialisation of global transformation
+        dtheta31 = angleMV13 / Pi[2] # mentovertical angle increment between P1 and P2
+        #mentoverticalP1 = mentovertical # at P1
+
+        # ------------------------------------------------------------------------------
+        # def rotm2globXYZ(R):
+        #     """
+        #     Rozklad rotační matice na globální rotace:
+        #     R = Rz(gamma) @ Ry(beta) @ Rx(alpha)
+
+        #     Parametry:
+        #         R : (3,3) numpy array
+        #             rotační matice
+
+        #     Návrat:
+        #         alpha  ... rotace kolem globální osy X [rad]
+        #         beta   ... rotace kolem globální osy Y [rad]
+        #         gamma  ... rotace kolem globální osy Z [rad]
+        #     """
+
+        #     R = np.asarray(R, dtype=float)
+
+        #     if R.shape != (3, 3):
+        #         raise ValueError("R musí být 3x3 matice")
+
+        #     # volitelná kontrola ortogonality
+        #     if np.linalg.norm(R @ R.T - np.eye(3)) > 1e-6:
+        #         print("Warning: R není přesně ortogonální")
+
+        #     beta = np.arcsin(-R[2, 0])
+
+        #     # ošetření gimbal locku
+        #     if abs(np.cos(beta)) > 1e-6:
+        #         alpha = np.arctan2(R[2, 1], R[2, 2])
+        #         gamma = np.arctan2(R[1, 0], R[0, 0])
+        #     else:
+        #         # gimbal lock (beta = +-pi/2)
+        #         alpha = 0.0
+        #         gamma = np.arctan2(-R[0, 1], R[1, 1])
+
+        #     return alpha, beta, gamma
+        # ------------------------------------------------------------------------------
+
+        # ------------------------------------------------------------------------------
+        # dragon
+        polyPoints = vtk.vtkPoints()
+        polyPoints.InsertNextPoint(SOBR)
+        polyPoints.InsertNextPoint(MVD)
+        polyPoints.InsertNextPoint(SOBF)
+        polyPoints.InsertNextPoint(MVU)
+
+        polygon = vtk.vtkPolygon()
+        polygon.GetPointIds().SetNumberOfIds(4)
+        for i in range(4):
+            polygon.GetPointIds().SetId(i, i)
+
+        polys = vtk.vtkCellArray()
+        polys.InsertNextCell(polygon)
+
+        polyData = vtk.vtkPolyData()
+        polyData.SetPoints(polyPoints)
+        polyData.SetPolys(polys)
+
+        polygonModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "MVBP_Polygon")
+        polygonModel.SetAndObservePolyData(polyData)
+
+        displayNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
+        displayNode.SetColor(1, 0, 0)
+        displayNode.SetOpacity(0.8)
+        displayNode.SetBackfaceCulling(False)
+
+        polygonModel.SetAndObserveDisplayNodeID(displayNode.GetID())
+        # ------------------------------------------------------------------------------
+
+        # ------------------------------------------------------------------------------
+        # planes axes
+        points = vtk.vtkPoints()
+        points.InsertNextPoint(PSA.tolist())  # 0
+        points.InsertNextPoint(PR.tolist())   # 1
+        points.InsertNextPoint(PSP.tolist())  # 2
+        points.InsertNextPoint(S3.tolist())   # 3
+        points.InsertNextPoint(PSI.tolist())  # 4
+        points.InsertNextPoint(S5.tolist())   # 5
+
+        lines = vtk.vtkCellArray()
+
+        def addLine(i, j):
+            line = vtk.vtkLine()
+            line.GetPointIds().SetId(0, i)
+            line.GetPointIds().SetId(1, j)
+            lines.InsertNextCell(line)
+
+        addLine(0, 1)  # PSA - PR
+        addLine(2, 3)  # PSP - S3
+        addLine(4, 5)  # PSI - S5
+
+        linePolyData = vtk.vtkPolyData()
+        linePolyData.SetPoints(points)
+        linePolyData.SetLines(lines)
+
+        psLinesModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "PS_Lines")
+        psLinesModel.SetAndObservePolyData(linePolyData)
+
+        display = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
+        display.SetColor(0, 0, 1)
+        display.SetLineWidth(3)
+        display.SetOpacity(1.0)
+        display.SetBackfaceCulling(False)
+
+        psLinesModel.SetAndObserveDisplayNodeID(display.GetID())
+        # ------------------------------------------------------------------------------
+
+        # ------------------------------------------------------------------------------   
+        # biparietal line
+        bpAxisPoints = vtk.vtkPoints()
+        bpAxisPoints.InsertNextPoint(0, 0, 0)  # BPL
+        bpAxisPoints.InsertNextPoint(0, 0, 0)  # BPR
+
+        bpLine = vtk.vtkLine()
+        bpLine.GetPointIds().SetId(0, 0)
+        bpLine.GetPointIds().SetId(1, 1)
+
+        bpLines = vtk.vtkCellArray()
+        bpLines.InsertNextCell(bpLine)
+
+        bpAxisPolyData = vtk.vtkPolyData()
+        bpAxisPolyData.SetPoints(bpAxisPoints)
+        bpAxisPolyData.SetLines(bpLines)
+
+        bpAxisModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Biparietal_Axis")
+        bpAxisModel.SetAndObservePolyData(bpAxisPolyData)
+
+        bpDisplay = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
+        bpDisplay.SetColor(0, 1, 0)
+        bpDisplay.SetLineWidth(5)
+        bpDisplay.SetOpacity(1.0)
+        bpDisplay.SetBackfaceCulling(False)
+
+        bpAxisModel.SetAndObserveDisplayNodeID(bpDisplay.GetID())
+
+        # ------------------------------------------------------------------------------
+        # align head to initial position on curve of carus
+        modelNodeHead = move(modelNodeHead, P1 - COG)
+
+        # new transform node
+        #transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "MotionTransform")
+        transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "StepTransform")
+
+        # add transformation to model
+        modelNodeHead.SetAndObserveTransformNodeID(transformNode.GetID())
+
+        # transformed model points
+        volMeshModelNodeHead = modelNodeHead.GetMesh()
+        pointsModelNodeHead = numpy_support.vtk_to_numpy(volMeshModelNodeHead.GetPoints().GetData())
+
+        # ------------------------------------------------------------------------------
+        #  (P1, P2, P3, P4, P5) = (Pi[0], Pi[1], Pi[2], Pi[3], Pi[4])
+        for tindex in range(1, numberOfPoints):
+
+            # COG always on curve of Carus
+            COG = curveOfCarus[tindex - 1, :3]
+
+            if tindex <= Pi[1]: # around mentovertical and biparietal between P1 and P2
+                T21MV = rotationTransformMatrix(mentovertical, COG, dtheta31) # mentovertical = mentovertical at P1
+                extension21 = angleBPextension12 * tindex / (Pi[1] - Pi[0])
+                #T21BP = rotationTransformMatrix(biparietal, COG, extension21)
+                T21BP = rotationTransformMatrix([1.0, 0.0, 0.0], COG, extension21)
+                T_rotation = T21BP @ T21MV # increment rotation matrix
+
+            elif tindex > Pi[1] and tindex <= Pi[2]: # around mentovertical and biparietal between P2 and P3
+                T32MV = rotationTransformMatrix(mentovertical, COG, dtheta31) # mentovertical rotates -> original mentovertical
+                extension31 = angleBPextension23 * tindex / (Pi[2] - Pi[1])
+                #T32BP = rotationTransformMatrix(biparietal, COG, extension31) # biparietal at P2
+                T32BP = rotationTransformMatrix([1.0, 0.0, 0.0], COG, extension31) # biparietal at P2
+                T_rotation = T32BP @ T32MV # increment rotation matrix
+
+            elif tindex > Pi[2] and tindex <= Pi[3]: # around biparietal between P3 and P4
+                extension43 = angleBPextension34 / (Pi[3] - Pi[2]) # extension angle increment between P4 and P5
+                T43BP = rotationTransformMatrix(biparietal, COG, extension43) # extension matrix between P4 and P5
+                T_rotation = T43BP # increment rotation matrix
+
+            else:  # around biparietal between P4 and P5
+                extension54 = angleBP45 / (Pi[4] - Pi[3]) # extension angle increment between P4 and P5
+                #T54BP = rotationTransformMatrix(biparietal, COG, extension54) # extension matrix between P4 and P5
+                T54BP = rotationTransformMatrix(biparietal, PSI, extension54) # extension matrix between P4 and P5
+                T_rotation = T54BP # increment rotation matrix
+
+            # translation
+            T_translation = np.eye(4)
+            T_translation[:3, 3] = curveOfCarus[tindex, :3] - COG
+
+            # increment transformation
+            T_step = T_translation @ T_rotation # rotation followed by translation
+            T_global = T_step @ T_global # accummulation to global transformation
+
+            matrix = vtkMatrix4x4()
+            for i in range(4):
+                for j in range(4):
+                    matrix.SetElement(i, j, T_global[i, j])
+
+            transformNode.SetMatrixTransformToParent(matrix)
+            slicer.app.processEvents()
+
+            #MVD = (T_global @ np.append(v803001, 1))[:3]
+            #MVU = (T_global @ np.append(v803002, 1))[:3]
+            MVD = (T_step @ np.append(MVD, 1))[:3]
+            MVU = (T_step @ np.append(MVU, 1))[:3]
+            mentovertical = MVU - MVD
+
+            #BPL = (T_global @ np.append(v803003, 1))[:3]
+            #BPR = (T_global @ np.append(v803004, 1))[:3]
+            BPL = (T_step @ np.append(BPL, 1))[:3]
+            BPR = (T_step @ np.append(BPR, 1))[:3]
+            biparietal = BPR - BPL
             
-            # parametric B-spline (tck = tuple with parameters)
-            tck, Pi = splprep([P[:, 1], P[:, 2]], s=0) # s=0 means accurately through points
-            Pi = np.round(Pi * numberOfPoints)
-            yi, zi = splev(t, tck)
-            curveOfCarus = np.column_stack((np.zeros_like(yi), yi, zi))
-
-            # ----------------------------------------------------------------------------------------------------------------------------
-            # display curve of Carus
-            points = vtk.vtkPoints()
-            lines = vtk.vtkCellArray()
-
-            for p in curveOfCarus:
-                points.InsertNextPoint(p)
-
-            lines.InsertNextCell(len(curveOfCarus))
-            for i in range(len(curveOfCarus)):
-                lines.InsertCellPoint(i)
-
-            polyData = vtk.vtkPolyData()
-            polyData.SetPoints(points)
-            polyData.SetLines(lines)
-
-            curve = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Curve of Carus")
-            curve.SetAndObservePolyData(polyData)
-
-            curve.CreateDefaultDisplayNodes()
-            displayNode = curve.GetDisplayNode()
-            displayNode.SetColor(0, 1, 0)
-            displayNode.SetLineWidth(1.0)
-            # ----------------------------------------------------------------------------------------------------------------------------
-
-            angleMV13 = np.radians(90.0) # mentovertical angle between P1 and P3
-            angleBPextension12 = np.arcsin(np.linalg.norm(np.cross(PR - PSA, S3 - PSP)) / (np.linalg.norm(PR - PSA) * np.linalg.norm(S3 - PSP)))
-            angleBPextension23 = np.arcsin(np.linalg.norm(np.cross(S3 - PSP, S5 - PSI)) / (np.linalg.norm(S3 - PSP) * np.linalg.norm(S5 - PSI)))
-            angleBPextension34 = np.arcsin(np.linalg.norm(np.cross(S5 - PSI, P4 - PSI)) / (np.linalg.norm(S5 - PSI) * np.linalg.norm(P4 - PSI)))
-            angleBP45 = np.radians(70.0) # final angle
-
-            transform = vtkTransform() # transformation initialisation
-            transform.Identity() # for cumulative transformation during loop
-
-            T_global = np.eye(4) # initialisation of global transformation
-            dtheta31 = angleMV13 / Pi[2] # mentovertical angle increment between P1 and P2
-            #mentoverticalP1 = mentovertical # at P1
-
-            # ------------------------------------------------------------------------------
-            # def rotm2globXYZ(R):
-            #     """
-            #     Rozklad rotační matice na globální rotace:
-            #     R = Rz(gamma) @ Ry(beta) @ Rx(alpha)
-
-            #     Parametry:
-            #         R : (3,3) numpy array
-            #             rotační matice
-
-            #     Návrat:
-            #         alpha  ... rotace kolem globální osy X [rad]
-            #         beta   ... rotace kolem globální osy Y [rad]
-            #         gamma  ... rotace kolem globální osy Z [rad]
-            #     """
-
-            #     R = np.asarray(R, dtype=float)
-
-            #     if R.shape != (3, 3):
-            #         raise ValueError("R musí být 3x3 matice")
-
-            #     # volitelná kontrola ortogonality
-            #     if np.linalg.norm(R @ R.T - np.eye(3)) > 1e-6:
-            #         print("Warning: R není přesně ortogonální")
-
-            #     beta = np.arcsin(-R[2, 0])
-
-            #     # ošetření gimbal locku
-            #     if abs(np.cos(beta)) > 1e-6:
-            #         alpha = np.arctan2(R[2, 1], R[2, 2])
-            #         gamma = np.arctan2(R[1, 0], R[0, 0])
-            #     else:
-            #         # gimbal lock (beta = +-pi/2)
-            #         alpha = 0.0
-            #         gamma = np.arctan2(-R[0, 1], R[1, 1])
-
-            #     return alpha, beta, gamma
-            # ------------------------------------------------------------------------------
-
+            SOBF = (T_step @ np.append(SOBF, 1))[:3]
+            SOBR = (T_step @ np.append(SOBR, 1))[:3]
+            #suboccipit = SOBF - SOBR
+            
             # ------------------------------------------------------------------------------
             # dragon
-            polyPoints = vtk.vtkPoints()
-            polyPoints.InsertNextPoint(SOBR)
-            polyPoints.InsertNextPoint(MVD)
-            polyPoints.InsertNextPoint(SOBF)
-            polyPoints.InsertNextPoint(MVU)
+            polyPoints.SetPoint(0, SOBR.tolist())
+            polyPoints.SetPoint(1, MVD.tolist())
+            polyPoints.SetPoint(2, SOBF.tolist())
+            polyPoints.SetPoint(3, MVU.tolist())
 
-            polygon = vtk.vtkPolygon()
-            polygon.GetPointIds().SetNumberOfIds(4)
-            for i in range(4):
-                polygon.GetPointIds().SetId(i, i)
-
-            polys = vtk.vtkCellArray()
-            polys.InsertNextCell(polygon)
-
-            polyData = vtk.vtkPolyData()
-            polyData.SetPoints(polyPoints)
-            polyData.SetPolys(polys)
-
-            polygonModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "MVBP_Polygon")
-            polygonModel.SetAndObservePolyData(polyData)
-
-            displayNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-            displayNode.SetColor(1, 0, 0)
-            displayNode.SetOpacity(0.8)
-            displayNode.SetBackfaceCulling(False)
-
-            polygonModel.SetAndObserveDisplayNodeID(displayNode.GetID())
+            polyPoints.Modified()
+            polyData.Modified()
+            polygonModel.Modified()
             # ------------------------------------------------------------------------------
 
             # ------------------------------------------------------------------------------
-            # planes axes
-            points = vtk.vtkPoints()
-            points.InsertNextPoint(PSA.tolist())  # 0
-            points.InsertNextPoint(PR.tolist())   # 1
-            points.InsertNextPoint(PSP.tolist())  # 2
-            points.InsertNextPoint(S3.tolist())   # 3
-            points.InsertNextPoint(PSI.tolist())  # 4
-            points.InsertNextPoint(S5.tolist())   # 5
-
-            lines = vtk.vtkCellArray()
-
-            def addLine(i, j):
-                line = vtk.vtkLine()
-                line.GetPointIds().SetId(0, i)
-                line.GetPointIds().SetId(1, j)
-                lines.InsertNextCell(line)
-
-            addLine(0, 1)  # PSA - PR
-            addLine(2, 3)  # PSP - S3
-            addLine(4, 5)  # PSI - S5
-
-            linePolyData = vtk.vtkPolyData()
-            linePolyData.SetPoints(points)
-            linePolyData.SetLines(lines)
-
-            psLinesModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "PS_Lines")
-            psLinesModel.SetAndObservePolyData(linePolyData)
-
-            display = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-            display.SetColor(0, 0, 1)
-            display.SetLineWidth(3)
-            display.SetOpacity(1.0)
-            display.SetBackfaceCulling(False)
-
-            psLinesModel.SetAndObserveDisplayNodeID(display.GetID())
-            # ------------------------------------------------------------------------------
-
-            # ------------------------------------------------------------------------------   
             # biparietal line
-            bpAxisPoints = vtk.vtkPoints()
-            bpAxisPoints.InsertNextPoint(0, 0, 0)  # BPL
-            bpAxisPoints.InsertNextPoint(0, 0, 0)  # BPR
+            bpAxisPoints.SetPoint(0, BPL.tolist())
+            bpAxisPoints.SetPoint(1, BPR.tolist())
 
-            bpLine = vtk.vtkLine()
-            bpLine.GetPointIds().SetId(0, 0)
-            bpLine.GetPointIds().SetId(1, 1)
-
-            bpLines = vtk.vtkCellArray()
-            bpLines.InsertNextCell(bpLine)
-
-            bpAxisPolyData = vtk.vtkPolyData()
-            bpAxisPolyData.SetPoints(bpAxisPoints)
-            bpAxisPolyData.SetLines(bpLines)
-
-            bpAxisModel = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode", "Biparietal_Axis")
-            bpAxisModel.SetAndObservePolyData(bpAxisPolyData)
-
-            bpDisplay = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelDisplayNode")
-            bpDisplay.SetColor(0, 1, 0)
-            bpDisplay.SetLineWidth(5)
-            bpDisplay.SetOpacity(1.0)
-            bpDisplay.SetBackfaceCulling(False)
-
-            bpAxisModel.SetAndObserveDisplayNodeID(bpDisplay.GetID())
+            bpAxisPoints.Modified()
+            bpAxisPolyData.Modified()
+            bpAxisModel.Modified()
             # ------------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------------
-            #  (P1, P2, P3, P4, P5) = (Pi[0], Pi[1], Pi[2], Pi[3], Pi[4])
-            for tindex in range(1, numberOfPoints):
+            time.sleep(0.5)
 
-                # COG always on curve of Carus
-                COG = curveOfCarus[tindex - 1, :3]
-
-                if tindex <= Pi[1]: # around mentovertical and biparietal between P1 and P2
-                    T21MV = rotationTransformMatrix(mentovertical, COG, dtheta31) # mentovertical = mentovertical at P1
-                    extension21 = angleBPextension12 * tindex / (Pi[1] - Pi[0])
-                    #T21BP = rotationTransformMatrix(biparietal, COG, extension21)
-                    T21BP = rotationTransformMatrix([1.0, 0.0, 0.0], COG, extension21)
-                    T_rotation = T21BP @ T21MV # increment rotation matrix
-
-                elif tindex > Pi[1] and tindex <= Pi[2]: # around mentovertical and biparietal between P2 and P3
-                    T32MV = rotationTransformMatrix(mentovertical, COG, dtheta31) # mentovertical rotates -> original mentovertical
-                    extension31 = angleBPextension23 * tindex / (Pi[2] - Pi[1])
-                    #T32BP = rotationTransformMatrix(biparietal, COG, extension31) # biparietal at P2
-                    T32BP = rotationTransformMatrix([1.0, 0.0, 0.0], COG, extension31) # biparietal at P2
-                    T_rotation = T32BP @ T32MV # increment rotation matrix
-
-                elif tindex > Pi[2] and tindex <= Pi[3]: # around biparietal between P3 and P4
-                    extension43 = angleBPextension34 / (Pi[3] - Pi[2]) # extension angle increment between P4 and P5
-                    T43BP = rotationTransformMatrix(biparietal, COG, extension43) # extension matrix between P4 and P5
-                    T_rotation = T43BP # increment rotation matrix
-
-                else:  # around biparietal between P4 and P5
-                    extension54 = angleBP45 / (Pi[4] - Pi[3]) # extension angle increment between P4 and P5
-                    #T54BP = rotationTransformMatrix(biparietal, COG, extension54) # extension matrix between P4 and P5
-                    T54BP = rotationTransformMatrix(biparietal, PSI, extension54) # extension matrix between P4 and P5
-                    T_rotation = T54BP # increment rotation matrix
-
-                # translation
-                T_translation = np.eye(4)
-                T_translation[:3, 3] = curveOfCarus[tindex, :3] - COG
-
-                # increment transformation
-                T_step = T_translation @ T_rotation # rotation followed by translation
-                T_global = T_step @ T_global # accummulation to global transformation
-
-                matrix = vtkMatrix4x4()
-                for i in range(4):
-                    for j in range(4):
-                        matrix.SetElement(i, j, T_global[i, j])
-
-                transformNode.SetMatrixTransformToParent(matrix)
-                slicer.app.processEvents()
-
-                #MVD = (T_global @ np.append(v803001, 1))[:3]
-                #MVU = (T_global @ np.append(v803002, 1))[:3]
-                MVD = (T_step @ np.append(MVD, 1))[:3]
-                MVU = (T_step @ np.append(MVU, 1))[:3]
-                mentovertical = MVU - MVD
-
-                #BPL = (T_global @ np.append(v803003, 1))[:3]
-                #BPR = (T_global @ np.append(v803004, 1))[:3]
-                BPL = (T_step @ np.append(BPL, 1))[:3]
-                BPR = (T_step @ np.append(BPR, 1))[:3]
-                biparietal = BPR - BPL
-                
-                SOBF = (T_step @ np.append(SOBF, 1))[:3]
-                SOBR = (T_step @ np.append(SOBR, 1))[:3]
-                #suboccipit = SOBF - SOBR
-                
-                # ------------------------------------------------------------------------------
-                # dragon
-                polyPoints.SetPoint(0, SOBR.tolist())
-                polyPoints.SetPoint(1, MVD.tolist())
-                polyPoints.SetPoint(2, SOBF.tolist())
-                polyPoints.SetPoint(3, MVU.tolist())
-
-                polyPoints.Modified()
-                polyData.Modified()
-                polygonModel.Modified()
-                # ------------------------------------------------------------------------------
-
-                # ------------------------------------------------------------------------------
-                # biparietal line
-                bpAxisPoints.SetPoint(0, BPL.tolist())
-                bpAxisPoints.SetPoint(1, BPR.tolist())
-
-                bpAxisPoints.Modified()
-                bpAxisPolyData.Modified()
-                bpAxisModel.Modified()
-                # ------------------------------------------------------------------------------
-
-                time.sleep(0.5)
-
-        else:
-            qt.QMessageBox.warning(slicer.util.mainWindow(), 
-                                   QMessageTitle, 'Model does not exist.')
-            
     else:
         qt.QMessageBox.warning(slicer.util.mainWindow(), 
                                 QMessageTitle, 'Model does not exist.')
